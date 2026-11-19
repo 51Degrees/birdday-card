@@ -1,6 +1,28 @@
 <?php
 require(__DIR__ . "/../vendor/autoload.php");
+use fiftyone\pipeline\cloudrequestengine\CloudRequestEngine;
+use fiftyone\pipeline\core\PipelineBuilder;
 use fiftyone\pipeline\geolocation\GeoLocationPipelineBuilder;
+
+// Wikimedia refuses requests that do not say which client sent them.
+const USER_AGENT = "Which3Birdies/1.0 (https://which-three-birdies.51degrees.com/)";
+
+function http_context() {
+    return stream_context_create(["http" => ["user_agent" => USER_AGENT]]);
+}
+
+// Without a Resource Key no place can be named, so the request is answered
+// with a message in place of a card.
+function require_resource_key() {
+    if ((string) getenv("RESOURCEKEY") !== "") {
+        return;
+    }
+    http_response_code(503);
+    header("Content-Type: text/plain; charset=utf-8");
+    header("Cache-Control: no-store");
+    echo "Which Three Birdies cannot make cards at the moment. Please try again later.\n";
+    exit;
+}
 
 $first_debug_print = TRUE;
 function decho($s) {
@@ -61,7 +83,10 @@ function store_cache_key($key, $data) {
 function cached_json($url) {
     $data = get_cache_key($url);
     if (!$data) {
-        $data = file_get_contents($url);
+        $data = file_get_contents($url, false, http_context());
+        if ($data === false) {
+            return null;
+        }
         store_cache_key($url, $data);
     }
     $as_json = json_decode($data, true);
@@ -77,7 +102,7 @@ function geoloc51d($lat, $lon) {
         return json_decode($cached_locations);
     }
 
-    $resourceKey = getenv("RESOURCEKEY");
+    $resourceKey = (string) getenv("RESOURCEKEY");
     $settings = array("resourceKey" => $resourceKey, "locationProvider" => "fiftyonedegrees");
     $builder = new GeoLocationPipelineBuilder($settings);
     $pipeline = $builder->build();
@@ -132,6 +157,71 @@ function geoloc51d($lat, $lon) {
     return $names;
 }
 
+// A short name for the place at a point, being its town and country where
+// both are known, or an empty string.
+function place_name($lat, $lon) {
+    $names = geoloc51d($lat, $lon);
+    foreach ($names as $name) {
+        if ($name[1] === "town+country") {
+            return $name[0];
+        }
+    }
+    return count($names) > 0 ? $names[0][0] : "";
+}
+
+// The visitor's address. The website forwards it in X-Forwarded-For, and
+// only a request from this machine, which is the website, is trusted to.
+function visitor_ip() {
+    $remote = (string) ($_SERVER["REMOTE_ADDR"] ?? "");
+    if ($remote === "127.0.0.1" || $remote === "::1") {
+        return trim((string) ($_SERVER["HTTP_X_FORWARDED_FOR"] ?? ""));
+    }
+    return $remote;
+}
+
+// Places within about a kilometer share a card, which is also how far the
+// IP location is moved at random.
+const IP_POINT_DECIMALS = 2;
+
+// The point 51Degrees IP Intelligence gives for a public address, as
+// [lat, lon], or null for an address that is not global (RFC 6890), a
+// failed lookup, or a location that is unknown or at 0, 0. The address
+// itself is not stored.
+function ip_location($ip) {
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE)) {
+        decho("No IP location for a private or unknown address");
+        return null;
+    }
+    try {
+        $pipeline = (new PipelineBuilder())
+            ->add(new CloudRequestEngine(array("resourceKey" => (string) getenv("RESOURCEKEY"))))
+            ->build();
+        $flowData = $pipeline->createFlowData();
+        $flowData->evidence->set("server.client-ip", $ip);
+        $flowData->process();
+        $answer = json_decode((string) $flowData->get("cloud")->get("cloud"), true);
+    } catch (Throwable $e) {
+        // The message goes to the log, which the website keeps keys out
+        // of, and never to the page.
+        error_log("PHP Warning: IP location failed: " . $e->getMessage());
+        decho("IP location failed");
+        return null;
+    }
+    $found = array_change_key_case((array) ($answer["ip"] ?? array()), CASE_LOWER);
+    $confidence = (string) ($found["locationconfidence"] ?? "");
+    if (!is_numeric($found["latitude"] ?? null) || !is_numeric($found["longitude"] ?? null)
+        || $confidence === "" || strcasecmp($confidence, "Unknown") === 0) {
+        decho("No IP location with a known confidence");
+        return null;
+    }
+    $point = array(round((float) $found["latitude"], IP_POINT_DECIMALS), round((float) $found["longitude"], IP_POINT_DECIMALS));
+    if ($point[0] == 0 && $point[1] == 0) {
+        decho("No IP location");
+        return null;
+    }
+    return $point;
+}
+
 function wikidata_image($text_array, $width) {
     // Search wikidata for our query text and get the first matching entity ID
     if (count($text_array) == 0) {
@@ -161,7 +251,7 @@ function wikidata_image($text_array, $width) {
         \array_splice($text_array, 0, 1);
         return wikidata_image($text_array, $width);
     }
-    if (count($wdo["query"]["search"]) == 0) {
+    if (empty($wdo["query"]["search"])) {
         decho("No wikidata search results for $item so trying with next one");
         \array_splice($text_array, 0, 1);
         return wikidata_image($text_array, $width);
@@ -210,45 +300,152 @@ function wikidata_image($text_array, $width) {
 }
 
 function xeno_canto($lat, $lon) {
-    $url = "https://www.xeno-canto.org/api/2/recordings?query=lat:$lat%20lon:$lon";
     $publicurl = "https://www.xeno-canto.org/explore?query=lat%3A$lat%20lon%3A$lon";
-    try {
-        $xdo = cached_json($url);
-    } catch(Exception $e) { decho("no xeno json"); return null; }
-    $birds = array();
-    $species = array();
-    $i = 0;
-    while (true) {
-        decho("Checking bird recording $i");
-        if (count($xdo["recordings"]) > $i) {
-            $birdspec = $xdo["recordings"][$i]["gen"] . " " . $xdo["recordings"][$i]["sp"];
-            decho("Bird is $birdspec");
-            if (!in_array($birdspec, $species)) {
-                $species[] = $birdspec;
-                list($birdimg, $birdpublic) = wikidata_image([$birdspec], 400);
-                if ($birdimg) {
-                    decho("Got bird image $birdimg");
-                    $birds[] = array(
-                        "image" => $birdimg,
-                        "wikidata" => $birdpublic,
-                        "species" => $birdspec,
-                        "sound_url" => $xdo["recordings"][$i]["file"],
-                        "cache_image" => get_bird_image_filename($birdspec)
-                    );
-                    if (count($birds) == 3) break;
-                } else {
-                    decho("No image for $birdspec");
-                }
-            } else {
-                decho("Already got $birdspec");
-            }
-        } else {
-            decho("No such recording; bail.");
-            break;
+    $key = (string) getenv("XENO_CANTO_API_KEY");
+    if ($key === "") {
+        decho("No xeno-canto key, so no recordings");
+        return array(array(), $publicurl);
+    }
+    // The ranked species are cached rather than the pages, which are large.
+    $cache_key = "xc3," . $lat . "," . $lon;
+    $cached = get_cache_key($cache_key);
+    if ($cached) {
+        $ranked = json_decode($cached, true);
+    } else {
+        $ranked = xeno_canto_species($lat, $lon, $key);
+        if ($ranked === null) {
+            decho("No answer from xeno-canto");
+            return array(array(), $publicurl);
         }
-        $i += 1;
+        store_cache_key($cache_key, json_encode($ranked));
+    }
+    $birds = array();
+    foreach ($ranked as $entry) {
+        $birdspec = $entry["species"];
+        decho("Bird is $birdspec, with " . $entry["recordings"] . " recordings");
+        list($birdimg, $birdpublic) = wikidata_image([$birdspec], 400);
+        if ($birdimg) {
+            decho("Got bird image $birdimg");
+            $birds[] = array(
+                "image" => $birdimg,
+                "wikidata" => $birdpublic,
+                "species" => $birdspec,
+                "sound_url" => $entry["file"],
+                "cache_image" => get_bird_image_filename($birdspec)
+            );
+            if (count($birds) == 3) break;
+        } else {
+            decho("No image for $birdspec");
+        }
     }
     return array($birds, $publicurl);
+}
+
+// The areas tried around the point, each given as half the side of a box in
+// degrees, nearest first. 0.05 degrees of latitude is about 5.5 km.
+const XC_BOX_HALF_SIDES = [0.05, 0.1, 0.25, 0.5, 1.0];
+
+// The most recordings API v3 returns on one page.
+const XC_PER_PAGE = 500;
+
+// The most xeno-canto requests one card makes.
+const XC_MAX_CALLS = 6;
+
+// Recordings enough to say which birds are most common in an area.
+const XC_ENOUGH_RECORDINGS = 100;
+
+// The bird species recorded near the point, most recorded first, each with
+// its best rated recording, or null when xeno-canto does not answer. API v3
+// lists recordings in taxonomic order with no other order offered, so the
+// counts come from an area whose recordings are all read: the nearest that
+// holds XC_ENOUGH_RECORDINGS, within XC_MAX_CALLS requests.
+function xeno_canto_species($lat, $lon, $key) {
+    $calls = 0;
+    $best = null;
+    foreach (XC_BOX_HALF_SIDES as $half) {
+        if ($calls >= XC_MAX_CALLS) {
+            break;
+        }
+        $first = xeno_canto_page($lat, $lon, $half, 1, $key);
+        $calls += 1;
+        if ($first === null) {
+            break;
+        }
+        $found = array("recordings" => $first["recordings"], "species" => (int) $first["numSpecies"]);
+        $pages = (int) $first["numPages"];
+        if ($pages > 1) {
+            // All of a nearer area with three species or more is better than
+            // part of a wider one.
+            if ($best !== null && $best["species"] >= 3) {
+                break;
+            }
+            for ($page = 2; $page <= $pages && $calls < XC_MAX_CALLS; $page++) {
+                $more = xeno_canto_page($lat, $lon, $half, $page, $key);
+                $calls += 1;
+                if ($more === null) {
+                    break;
+                }
+                $found["recordings"] = array_merge($found["recordings"], $more["recordings"]);
+            }
+            $best = $found;
+            break;
+        }
+        $best = $found;
+        if (count($found["recordings"]) >= XC_ENOUGH_RECORDINGS && $found["species"] >= 3) {
+            break;
+        }
+    }
+    decho("Asked xeno-canto $calls times");
+    if ($best === null) {
+        return null;
+    }
+
+    $counts = array();
+    $sounds = array();
+    foreach ($best["recordings"] as $recording) {
+        // xeno-canto files a recording nobody has identified as "Mystery
+        // mystery".
+        if (empty($recording["gen"]) || empty($recording["sp"])
+            || strcasecmp($recording["gen"], "Mystery") === 0) {
+            continue;
+        }
+        $name = $recording["gen"] . " " . $recording["sp"];
+        $counts[$name] = ($counts[$name] ?? 0) + 1;
+        // A restricted species has its file withheld. Quality runs from A,
+        // the best, to E, and "no score" sorts after them.
+        $file = (string) ($recording["file"] ?? "");
+        $quality = (string) ($recording["q"] ?? "");
+        if (str_contains($file, "xeno-canto.org/")
+            && (!isset($sounds[$name]) || strcmp($quality, $sounds[$name][1]) < 0)) {
+            $sounds[$name] = array($file, $quality);
+        }
+    }
+    $species = array_keys(array_intersect_key($counts, $sounds));
+    usort($species, function ($a, $b) use ($counts) {
+        return ($counts[$b] <=> $counts[$a]) ?: strcmp($a, $b);
+    });
+    return array_map(function ($name) use ($counts, $sounds) {
+        return array("species" => $name, "recordings" => $counts[$name], "file" => $sounds[$name][0]);
+    }, $species);
+}
+
+// One page of the birds recorded in a box around the point, or null when
+// xeno-canto does not answer. The key goes on the request only, never into
+// the debug output.
+function xeno_canto_page($lat, $lon, $half, $page, $key) {
+    $box = sprintf("%.4F,%.4F,%.4F,%.4F",
+        max(-90, $lat - $half), max(-180, $lon - $half),
+        min(90, $lat + $half), min(180, $lon + $half));
+    $url = "https://xeno-canto.org/api/3/recordings?" . http_build_query(
+        array("query" => "box:$box grp:birds", "per_page" => XC_PER_PAGE, "page" => $page),
+        "", "&", PHP_QUERY_RFC3986);
+    decho("Asking xeno-canto for page $page of box $box");
+    $data = file_get_contents($url . "&key=" . rawurlencode($key), false, http_context());
+    if ($data === false) {
+        return null;
+    }
+    $json = json_decode($data, true);
+    return is_array($json) && isset($json["recordings"]) ? $json : null;
 }
 
 
@@ -299,8 +496,7 @@ function add_bird($base, $bird, $cache_image, $w, $h, $x, $y, $border) {
     }
 
     if ($b1 === FALSE) {
-        $context = stream_context_create(["http" => ["user_agent" => "Which3Birdies/1.0"]]);
-        $b1 = @imagecreatefromstring(file_get_contents($bird, false, $context));
+        $b1 = @imagecreatefromstring(file_get_contents($bird, false, http_context()));
     }
     if ($b1 === FALSE) {
         decho("Couldn't load bird image $bird!");
@@ -370,8 +566,7 @@ function create_save_image($fn, $lat, $lon, $data_cache_key) {
 
     // Get base image into a GD image object
     decho("Loading base image $image_url");
-    $context = stream_context_create(["http" => ["user_agent" => "Which3Birdies/1.0"]]);
-    $base = imagecreatefromstring(file_get_contents($image_url, false, $context));
+    $base = imagecreatefromstring(file_get_contents($image_url, false, http_context()));
     if ($base === FALSE) {
         decho("Couldn't load $image_url");
         die();
