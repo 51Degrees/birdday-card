@@ -1,12 +1,19 @@
 <?php 
 
 require "functions.php";
+require_resource_key();
 
 list($lat, $lon, $data_cache_key) = validate();
 
 header("Content-Type: application/json");
 
 $data = get_cache_key($data_cache_key);
+if (!$data) {
+    // Each server keeps its own cache, so the card may have been made on
+    // another one.
+    create_save_image(get_filename($lat, $lon), $lat, $lon, $data_cache_key);
+    $data = get_cache_key($data_cache_key);
+}
 if (!$data) {
     echo json_encode(array("error" => "That card has never been generated."));
     die();

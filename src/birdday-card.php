@@ -1,6 +1,7 @@
 <?php
 
 require "functions.php";
+require_resource_key();
 
 list($lat, $lon, $data_cache_key) = validate();
 
@@ -191,7 +192,7 @@ list($lat, $lon, $data_cache_key) = validate();
             <a href="https://github.com/stuartlangridge/birdday-card/">Github</a>,
             licensed under the <a
                 href="https://web.archive.org/web/20140924010836/http://wiseearthpublishers.com/sites/wiseearthpublishers.com/files/PeacefulOSL.txt">Peaceful
-                Open Source License</a>.</small>
+                Open Source License</a>.<br>Version 2.</small>
     </footer>
     <script>
     document.querySelector("figure").setAttribute("aria-busy", "true");

@@ -1,16 +1,17 @@
 <?php 
 
 require "functions.php";
+require_resource_key();
 
 if (isset($_GET["nocache"])) {
     decho("Wiping data cache as nocache is set");
-    $files = glob('/var/www/cache/*'); // get all file names
+    $files = glob(__DIR__ . '/../cache/*'); // get all file names
     foreach($files as $file){ // iterate files
         if(is_file($file)) {
             unlink($file); // delete file
         }
     }
-    $files = glob('/var/www/images/*'); // get all file names
+    $files = glob(__DIR__ . '/../images/*'); // get all file names
     foreach($files as $file){ // iterate files
         if(is_file($file)) {
             unlink($file); // delete file
