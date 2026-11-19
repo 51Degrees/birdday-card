@@ -1,5 +1,10 @@
 {
     "require": {
-        "51degrees/fiftyone.geolocation": "^4.1"
+        "51degrees/fiftyone.geolocation": "^4.5"
+    },
+    "config": {
+        "platform": {
+            "php": "8.3"
+        }
     }
 }

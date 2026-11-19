@@ -1,10 +1,17 @@
 <?php
 
 require "functions.php";
+require_resource_key();
 
 list($lat, $lon, $data_cache_key) = validate();
 
 $data = get_cache_key($data_cache_key);
+if (!$data) {
+    // Each server keeps its own cache, so the card may have been made on
+    // another one.
+    create_save_image(get_filename($lat, $lon), $lat, $lon, $data_cache_key);
+    $data = get_cache_key($data_cache_key);
+}
 if (!$data) {
     echo "That card has never been generated.";
     die();
@@ -108,10 +115,10 @@ $data = json_decode($data, true);
                 href="https://twitter.com/brucel">@brucel</a>).</small><p><small>The header drawing is by <a
                 href="https://openclipart.org/detail/219787/owl-and-a-birds">Rones</a>.</small></p>Not many birds were harmed
             during the coding of this website (but Bruce ate a chicken sandwich while writing the CSS). <br>Source is on
-            <a href="https://github.com/stuartlangridge/birdday-card/">Github</a>,
+            <a href="https://github.com/51Degrees/birdday-card">Github</a>,
             licensed under the <a
                 href="https://web.archive.org/web/20140924010836/http://wiseearthpublishers.com/sites/wiseearthpublishers.com/files/PeacefulOSL.txt">Peaceful
-                Open Source License</a>.</small>
+                Open Source License</a>.<br>Version 2.</small>
     </footer>
 </body>
 

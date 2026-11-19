@@ -10,6 +10,16 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com">
 	<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="styles.css">
+	<style>
+	#nearyou {
+		text-align: center;
+	}
+
+	#nearyou button {
+		font-size: 1.2em;
+		padding: 0.4em 1em;
+	}
+	</style>
 </head>
 
 <body>
@@ -17,6 +27,41 @@
 		<h1>Which <span>Three</span> Birdies?</h1>
 	</header>
 	<div><main>
+		<section id="nearyou">
+			<h2>Your birdday card</h2>
+			<p id="nearyou-text" aria-live="polite">Finding where your IP address thinks you might be&hellip;</p>
+			<div class="nearyou-frame" id="nearyou-frame" aria-busy="true">
+				<a id="nearyou-link" href="birdday-card.php" hidden><img id="nearyou-card"
+						alt="Your birdday card" width="800" height="540"></a>
+				<div class="nearyou-loading" id="nearyou-loading">
+					<div class="nearyou-hop" aria-hidden="true"><span></span><span></span><span></span></div>
+					<p id="nearyou-loading-text">Finding where you might be&hellip;</p>
+				</div>
+			</div>
+			<div class="nearyou-actions" id="nearyou-actions" hidden>
+				<p class="cta"><a id="nearyou-open" class="nearyou-open" href="birdday-card.php">Open your card and hear
+						the birds</a></p>
+				<div id="nearyou-gps" hidden>
+					<p><button type="button" id="nearyou-share" class="nearyou-target">
+						<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true" focusable="false">
+							<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
+							<circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+							<path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" stroke="currentColor" stroke-width="2"
+								stroke-linecap="round"></path>
+						</svg>
+						<span>If you want the birds nearest you, tap here</span>
+					</button></p>
+					<p class="nearyou-hint">Your browser asks before it shares where your device is. The card then
+						moves from your IP address to your device's location.</p>
+				</div>
+				<div class="nearyou-toggle" id="nearyou-toggle" role="group" aria-label="Show the card for" hidden>
+					<span class="nearyou-toggle-label">Show the card for</span>
+					<button type="button" id="nearyou-show-ip" aria-pressed="false">Your IP address</button>
+					<button type="button" id="nearyou-show-gps" aria-pressed="true">Your device</button>
+				</div>
+			</div>
+			<p id="nearyou-note" hidden></p>
+		</section>
 <p>Many web services divide the world up into small areas that can be referenced by a small set of mnemonics
 			that is
 			memorable and easily communicable, to <a
@@ -26,7 +71,7 @@
 			new
 			way to address any location in the world, using humanity’s only common unambiguous language", but why does
 			it
-			associate latitude 19.6968708, longitude 96.1249349 with "🔳🏰💭"? There is no reason. Also, there are only
+			associate latitude 19.70, longitude 96.12 with "🔳🏰💭"? There is no reason. Also, there are only
 			<a href="https://github.com/BadIdeaFactory/what3emojis/issues/1">1407 emojis</a>, so 1407<sup>3</sup> gives
 			you
 			a paltry 2,785,366,143 addresses.
@@ -75,23 +120,22 @@
 				href="https://twitter.com/sil">@sil</a>) and <a href="https://brucelawson.co.uk">Bruce Lawson</a> (<a
 				href="https://twitter.com/brucel">@brucel</a>). The header drawing is by <a
 				href="https://openclipart.org/detail/219787/owl-and-a-birds">Rones</a>. <br>Not many birds were harmed
-			during the coding of this website (but Bruce ate a chicken  sandwich while writing the CSS). <br>Source is on <a href="https://github.com/stuartlangridge/birdday-card/">Github</a>,
+			during the coding of this website (but Bruce ate a chicken  sandwich while writing the CSS). <br>Source is on <a href="https://github.com/51Degrees/birdday-card">Github</a>,
 			licensed under the <a
 				href="https://web.archive.org/web/20140924010836/http://wiseearthpublishers.com/sites/wiseearthpublishers.com/files/PeacefulOSL.txt">Peaceful
-				Open Source License</a>. LC: 10714.</small>
+				Open Source License</a>. LC: 10714.<br>Version 2.</small>
 	</footer>
 	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
 		integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
 		crossorigin=""></script>
+	<script src="map-key.php"></script>
 	<script>
 		const map = L.map('themap').setView([51.505, -0.09], 3);
-		L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-			attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+		L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key={key}', {
+			attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions">CARTO</a>',
 			maxZoom: 18,
-			id: 'mapbox/streets-v11',
-			tileSize: 512,
-			zoomOffset: -1,
-			accessToken: 'pk.eyJ1Ijoic3R1YXJ0bGFuZ3JpZGdlIiwiYSI6ImNraHU4bTExdDAydzMzNG1vbmM1YWxoMW4ifQ.Fl0ElB8StjHD-MpiKUZLLg'
+			subdomains: 'abcd',
+			key: encodeURIComponent(window.cartoApiKey || '')
 		}).addTo(map);
 
 		let marker;
@@ -107,6 +151,142 @@
 		}
 		map.on('click', onMapClick);
 
+	</script>
+	<script>
+		// The visitor's own card always starts from the IP address. When the
+		// visitor shares the device's location the card moves there, and a
+		// toggle then switches between the two, so the difference can be seen.
+		// A loading panel holds the card's place while it is made.
+		const byId = id => document.getElementById(id);
+		let ipPlace = null;
+		let gpsPlace = null;
+
+		function cardAddress(page, place) {
+			return page + "?lat=" + encodeURIComponent(place.lat) + "&lon=" + encodeURIComponent(place.lon);
+		}
+
+		function describe(place) {
+			if (place.source === "gps") {
+				const here = place.place
+					? "This card is for " + place.place + ", where your device says you are."
+					: "This card is for where your device says you are.";
+				return ipPlace && ipPlace.place
+					? here + " Your IP address thought you might be in " + ipPlace.place + "."
+					: here;
+			}
+			return place.place
+				? "This card is for " + place.place + ", where your IP address thinks you might be located."
+				: "This card is for where your IP address thinks you might be located.";
+		}
+
+		function showLoading(text) {
+			byId("nearyou-frame").hidden = false;
+			byId("nearyou-frame").setAttribute("aria-busy", "true");
+			byId("nearyou-loading-text").textContent = text;
+			byId("nearyou-loading").hidden = false;
+			byId("nearyou-link").hidden = true;
+		}
+
+		function showActions(place) {
+			const canShare = !!navigator.geolocation && !gpsPlace;
+			byId("nearyou-actions").hidden = false;
+			byId("nearyou-open").parentElement.hidden = !place;
+			byId("nearyou-gps").hidden = !canShare;
+			byId("nearyou-toggle").hidden = !(ipPlace && gpsPlace);
+			if (place) {
+				byId("nearyou-show-ip").setAttribute("aria-pressed", String(place.source !== "gps"));
+				byId("nearyou-show-gps").setAttribute("aria-pressed", String(place.source === "gps"));
+			}
+		}
+
+		function showCard(place) {
+			const card = byId("nearyou-card");
+			byId("nearyou-text").textContent = describe(place);
+			byId("nearyou-note").hidden = true;
+			showActions(place);
+			byId("nearyou-link").href = cardAddress("birdday-card.php", place);
+			byId("nearyou-open").href = cardAddress("birdday-card.php", place);
+			showLoading(place.source === "gps"
+				? "Finding the birds near your device and making your card\u2026"
+				: "Finding the birds near you and making your card\u2026");
+			card.classList.remove("arrived");
+			card.onload = () => {
+				byId("nearyou-loading").hidden = true;
+				byId("nearyou-link").hidden = false;
+				byId("nearyou-frame").setAttribute("aria-busy", "false");
+				card.classList.add("arrived");
+			};
+			card.onerror = () => {
+				byId("nearyou-loading-text").textContent =
+					"The card couldn't be made just now. Try again, or pick a place on the map below.";
+				byId("nearyou-frame").setAttribute("aria-busy", "false");
+			};
+			card.src = cardAddress("img.php", place);
+		}
+
+		function showNoIpPlace() {
+			if (!navigator.geolocation) {
+				byId("nearyou").hidden = true;
+				return;
+			}
+			byId("nearyou-text").textContent =
+				"Your IP address doesn't tell us where you might be, so there's no card yet.";
+			byId("nearyou-frame").hidden = true;
+			showActions(null);
+		}
+
+		function showNote(text) {
+			const note = byId("nearyou-note");
+			note.textContent = text;
+			note.hidden = false;
+		}
+
+		async function lookUp(query) {
+			try {
+				const response = await fetch("place.php" + query);
+				return response.ok ? await response.json() : null;
+			} catch (e) {
+				return null;
+			}
+		}
+
+		async function fromIp() {
+			showLoading("Finding where you might be\u2026");
+			ipPlace = await lookUp("");
+			if (ipPlace) {
+				showCard(ipPlace);
+			} else {
+				showNoIpPlace();
+			}
+		}
+
+		function fromDevice() {
+			const button = byId("nearyou-share");
+			const failed = () => {
+				button.disabled = false;
+				showNote(ipPlace
+					? "Your browser didn't share where your device is, so this card still uses your IP address."
+					: "Your browser didn't share where your device is, so there's no card yet. Pick a place on the map instead.");
+			};
+			button.disabled = true;
+			showNote("Asking your browser where your device is\u2026");
+			navigator.geolocation.getCurrentPosition(async position => {
+				const place = await lookUp("?lat=" + position.coords.latitude.toFixed(6) +
+					"&lon=" + position.coords.longitude.toFixed(6));
+				if (place) {
+					gpsPlace = place;
+					showCard(place);
+				} else {
+					failed();
+				}
+			}, failed);
+		}
+
+		byId("nearyou-share").addEventListener("click", fromDevice);
+		byId("nearyou-show-ip").addEventListener("click", () => ipPlace && showCard(ipPlace));
+		byId("nearyou-show-gps").addEventListener("click", () => gpsPlace && showCard(gpsPlace));
+
+		fromIp();
 	</script>
 </body>
 

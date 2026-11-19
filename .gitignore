@@ -1,9 +1,4 @@
-cache/*
-images/*
-aws.csv
-venv
-
-# Elastic Beanstalk Files
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
+# What Composer and a running app write.
+vendor/
+cache/
+images/

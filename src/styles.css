@@ -101,6 +101,185 @@ p.cta {
   text-align: center;
 }
 
+/* The visitor's card, from the IP address and then the device. */
+#nearyou-gps p {
+  text-align: center;
+}
+
+.nearyou-target {
+  align-items: center;
+  background: #522d7e;
+  border: 0;
+  border-radius: 2em;
+  box-shadow: 3px 3px 0 #fff;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: bold 1.1em Roboto, sans-serif;
+  gap: 0.6em;
+  padding: 0.7em 1.4em;
+}
+
+.nearyou-target:hover,
+.nearyou-target:focus-visible {
+  background: #3b1f5c;
+}
+
+.nearyou-target:focus-visible {
+  outline: 3px solid #000;
+  outline-offset: 3px;
+}
+
+.nearyou-target:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.nearyou-hint {
+  font-size: 0.9em;
+}
+
+/* The card's frame keeps the card's shape while it loads, so the page
+   doesn't jump. */
+.nearyou-frame {
+  aspect-ratio: 800 / 540;
+  background: #fff;
+  border: 3px solid #522d7e;
+  border-radius: 0.5em;
+  margin: 0 auto 1em;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 800px;
+}
+
+.nearyou-frame img {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.nearyou-loading {
+  align-items: center;
+  color: #522d7e;
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+  inset: 0;
+  justify-content: center;
+  padding: 1em;
+  position: absolute;
+  text-align: center;
+}
+
+.nearyou-loading[hidden] {
+  display: none;
+}
+
+.nearyou-hop {
+  display: flex;
+  gap: 0.6em;
+  margin-bottom: 1em;
+}
+
+.nearyou-hop span {
+  animation: nearyou-hop 0.9s ease-in-out infinite;
+  background: #522d7e;
+  border-radius: 50% 50% 45% 45%;
+  display: block;
+  height: 1.4em;
+  width: 1.4em;
+}
+
+.nearyou-hop span:nth-child(2) {
+  animation-delay: 0.15s;
+  background: red;
+}
+
+.nearyou-hop span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes nearyou-hop {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8em);
+  }
+}
+
+/* Actions sit under the card: open it, then move to the device or switch
+   between the two places. */
+.nearyou-actions p.cta {
+  margin-bottom: 1em;
+}
+
+.nearyou-open {
+  font-weight: bold;
+}
+
+.nearyou-toggle {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.nearyou-toggle[hidden] {
+  display: none;
+}
+
+.nearyou-toggle-label {
+  color: #522d7e;
+  font-weight: bold;
+  margin-right: 0.25em;
+}
+
+.nearyou-toggle button {
+  background: #fff;
+  border: 2px solid #522d7e;
+  border-radius: 2em;
+  color: #522d7e;
+  cursor: pointer;
+  font: bold 1em Roboto, sans-serif;
+  padding: 0.5em 1.2em;
+}
+
+.nearyou-toggle button[aria-pressed="true"] {
+  background: #522d7e;
+  color: #fff;
+}
+
+.nearyou-toggle button:focus-visible {
+  outline: 3px solid #000;
+  outline-offset: 3px;
+}
+
+#nearyou-card.arrived {
+  animation: nearyou-arrive 0.6s ease-out;
+}
+
+@keyframes nearyou-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nearyou-card.arrived,
+  .nearyou-hop span {
+    animation: none;
+  }
+}
+
 /* https://css-tricks.com/snippets/css/prevent-superscripts-and-subscripts-from-affecting-line-height/ */
 sup {
   vertical-align: baseline;
