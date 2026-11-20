@@ -73,9 +73,11 @@ $data = json_decode($data, true);
                 <dt>Location:</dt>
                 <dd><?php echo $data["location"][0]; ?></dd>
                 <dd>provided by <a href="https://51degrees.com">51Degrees</a></dd>
+                <?php if (!empty($data["town"])) { ?>
                 <dt>Location imagery:</dt>
                 <dd><a href="<?php echo $data["town"]; ?>">Local image</a></dd>
                 <dd>provided by <a href="https://wikidata.org">Wikidata</a></dd>
+                <?php } ?>
                 <dt>Local birds:</dt>
                 <dd>
                     <?php if (count($data["birds"]) > 0) { ?>

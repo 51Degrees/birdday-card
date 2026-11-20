@@ -290,8 +290,9 @@ function wikidata_image($text_array, $width) {
             return wikidata_image($text_array, $width);
         }
     }
-    if (!$imgname || strlen($imgname) == 0 || !stripos($imgname, ".jpg")) {
-        decho("Couldn't find a .jpg image for $item so trying with next one");
+    // GD reads JPEG and PNG, and Wikimedia names JPEGs .jpg or .jpeg.
+    if (!$imgname || !preg_match('/\.(jpe?g|png)$/i', $imgname)) {
+        decho("Couldn't find a JPEG or PNG image for $item so trying with next one");
         \array_splice($text_array, 0, 1);
         return wikidata_image($text_array, $width);
     }
@@ -564,17 +565,25 @@ function create_save_image($fn, $lat, $lon, $data_cache_key) {
     $outw = 800;
     $outh = 540;
 
-    // Get base image into a GD image object
-    decho("Loading base image $image_url");
-    $base = imagecreatefromstring(file_get_contents($image_url, false, http_context()));
-    if ($base === FALSE) {
-        decho("Couldn't load $image_url");
-        die();
+    // Get base image into a GD image object. A place with no picture, or a
+    // picture that can't be fetched, gets a plain sky blue card instead.
+    $base = FALSE;
+    if ($image_url) {
+        decho("Loading base image $image_url");
+        $picture = file_get_contents($image_url, false, http_context());
+        if ($picture) {
+            $base = @imagecreatefromstring($picture);
+        }
     }
-
-    // Scale base image to our desired size
-    decho("Scaling base image $image_url to size $outw $outh");
-    $base = scaler($base, $outw, $outh);
+    if ($base === FALSE) {
+        decho("No base image, so a plain background");
+        $base = imagecreatetruecolor($outw, $outh);
+        imagefill($base, 0, 0, imagecolorallocate($base, 135, 190, 225));
+    } else {
+        // Scale base image to our desired size
+        decho("Scaling base image $image_url to size $outw $outh");
+        $base = scaler($base, $outw, $outh);
+    }
 
     // composite birds onto base image
     switch (count($birds)) {
